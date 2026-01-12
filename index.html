@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>AR Flashcard</title>
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- MindAR for A-Frame -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="btnSurvey">Survey</button>
+    <button id="btnWalk">Walk</button>
+    <button id="btnRun">Run</button>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-entity
+        id="fox"
+        gltf-model="assets/Fox.glb"
+        scale="0.01 0.01 0.01"
+        position="0 0 0"
+        rotation="90 0 0">
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    AFRAME.registerComponent('fox-animations', {
+      init: function() {
+        this.model = null;
+        this.mixer = null;
+        this.actions = {};
+        this.currentAction = null;
+
+        this.el.addEventListener('model-loaded', () => {
+          this.model = this.el.getObject3D('mesh');
+          
+          if (!this.model) {
+            console.error('Model not found');
+            return;
+          }
+
+          // Create mixer
+          this.mixer = new THREE.AnimationMixer(this.model);
+          
+          // Get animations from the model
+          const animations = this.model.animations || [];
+          console.log('Found animations:', animations.map(a => a.name));
+
+          // Create actions for each animation
+          animations.forEach(clip => {
+            this.actions[clip.name] = this.mixer.clipAction(clip);
+          });
+
+          // Play Survey by default
+          this.playAnimation('Survey');
+        });
+      },
+
+      tick: function(time, deltaTime) {
+        if (this.mixer) {
+          this.mixer.update(deltaTime / 1000);
+        }
+      },
+
+      playAnimation: function(name) {
+        if (!this.actions[name]) {
+          console.warn('Animation not found:', name);
+          return;
+        }
+
+        // Fade out current animation
+        if (this.currentAction && this.currentAction !== this.actions[name]) {
+          this.currentAction.fadeOut(0.3);
+        }
+
+        // Fade in and play new animation
+        const action = this.actions[name];
+        action.reset()
+          .setEffectiveTimeScale(1)
+          .setEffectiveWeight(1)
+          .fadeIn(0.3)
+          .play();
+
+        this.currentAction = action;
+        console.log('Playing:', name);
+      }
+    });
+
+    // Add component to fox
+    document.addEventListener('DOMContentLoaded', () => {
+      const fox = document.querySelector('#fox');
+      fox.setAttribute('fox-animations', '');
+
+      // Button event listeners
+      document.getElementById('btnSurvey').addEventListener('click', () => {
+        fox.components['fox-animations'].playAnimation('Survey');
+      });
+
+      document.getElementById('btnWalk').addEventListener('click', () => {
+        fox.components['fox-animations'].playAnimation('Walk');
+      });
+
+      document.getElementById('btnRun').addEventListener('click', () => {
+        fox.components['fox-animations'].playAnimation('Run');
+      });
+    });
+  </script>
+</body>
+</html>
