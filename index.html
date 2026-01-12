@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>AR Flashcard</title>
+  <title>Stable AR Flashcard</title>
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <!-- MindAR for A-Frame -->
@@ -31,9 +31,23 @@
     button:hover {
       background: #45a049;
     }
+    #status {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      z-index: 1000;
+      font-family: Arial, sans-serif;
+    }
   </style>
 </head>
 <body>
+  <div id="status">Point camera at marker card</div>
+  
   <div id="controls">
     <button id="btnSurvey">Survey</button>
     <button id="btnWalk">Walk</button>
@@ -41,23 +55,52 @@
   </div>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind;"
+    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta:0.01; warmupTolerance:5; missTolerance:5"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
+    
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
     
-    <a-entity mindar-image-target="targetIndex: 0">
+    <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
       <a-entity
         id="fox"
         gltf-model="assets/Fox.glb"
         scale="0.007 0.007 0.007"
         position="0 0 0"
-        rotation="90 0 0">
+        rotation="90 0 0"
+        animation-smoothing>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
+    // Custom component for position smoothing (reduces jitter)
+    AFRAME.registerComponent('animation-smoothing', {
+      schema: {
+        enabled: { default: true },
+        smoothFactor: { default: 0.3 } // Lower = smoother but more lag
+      },
+      
+      init: function() {
+        this.targetPosition = new THREE.Vector3();
+        this.targetRotation = new THREE.Euler();
+        this.targetScale = new THREE.Vector3();
+      },
+      
+      tick: function() {
+        if (!this.data.enabled) return;
+        
+        const object3D = this.el.object3D;
+        const parent = this.el.parentEl.object3D;
+        
+        if (!parent) return;
+        
+        // Smooth interpolation of position
+        this.targetPosition.copy(object3D.position);
+        object3D.position.lerp(this.targetPosition, this.data.smoothFactor);
+      }
+    });
+
     AFRAME.registerComponent('fox-animations', {
       init: function() {
         this.model = null;
@@ -120,10 +163,30 @@
       }
     });
 
-    // Add component to fox
+    // Track marker visibility
+    AFRAME.registerComponent('marker-tracker', {
+      init: function() {
+        const status = document.getElementById('status');
+        
+        this.el.addEventListener('targetFound', () => {
+          status.textContent = '✓ Marker detected - Model locked to card';
+          status.style.background = 'rgba(76, 175, 80, 0.9)';
+        });
+        
+        this.el.addEventListener('targetLost', () => {
+          status.textContent = '✗ Marker lost - Point at card';
+          status.style.background = 'rgba(244, 67, 54, 0.9)';
+        });
+      }
+    });
+
+    // Initialize everything
     document.addEventListener('DOMContentLoaded', () => {
       const fox = document.querySelector('#fox');
+      const targetEntity = document.querySelector('#target-entity');
+      
       fox.setAttribute('fox-animations', '');
+      targetEntity.setAttribute('marker-tracker', '');
 
       // Button event listeners
       document.getElementById('btnSurvey').addEventListener('click', () => {
