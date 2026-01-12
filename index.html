@@ -55,9 +55,10 @@
   </div>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta:0.01; warmupTolerance:5; missTolerance:5"
+    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.00001; filterBeta:0.001; warmupTolerance:2; missTolerance:10; maxTrack:1"
     vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+    device-orientation-permission-ui="enabled: false"
+    renderer="colorManagement: true; physicallyCorrectLights: true; maxCanvasWidth: 1920; maxCanvasHeight: 1920;">
     
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
     
@@ -78,26 +79,30 @@
     AFRAME.registerComponent('animation-smoothing', {
       schema: {
         enabled: { default: true },
-        smoothFactor: { default: 0.3 } // Lower = smoother but more lag
+        smoothFactor: { default: 0.15 } // Lower = smoother but more lag
       },
       
       init: function() {
-        this.targetPosition = new THREE.Vector3();
-        this.targetRotation = new THREE.Euler();
-        this.targetScale = new THREE.Vector3();
+        this.lastVisible = true;
+        this.smoothPosition = new THREE.Vector3();
+        this.smoothRotation = new THREE.Quaternion();
       },
       
-      tick: function() {
+      tick: function(dt) {
         if (!this.data.enabled) return;
         
         const object3D = this.el.object3D;
-        const parent = this.el.parentEl.object3D;
         
-        if (!parent) return;
-        
-        // Smooth interpolation of position
-        this.targetPosition.copy(object3D.position);
-        object3D.position.lerp(this.targetPosition, this.data.smoothFactor);
+        // Keep model visible even during brief tracking loss
+        if (object3D.visible) {
+          this.lastVisible = true;
+          this.smoothPosition.copy(object3D.position);
+          this.smoothRotation.copy(object3D.quaternion);
+        } else if (this.lastVisible) {
+          // Maintain last known position briefly
+          object3D.position.copy(this.smoothPosition);
+          object3D.quaternion.copy(this.smoothRotation);
+        }
       }
     });
 
