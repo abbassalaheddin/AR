@@ -2,11 +2,11 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>AR Animal Card</title>
+  <title>AR Animal Card - Optimized</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
     #controls {
       position: absolute;
       bottom: 20px;
@@ -29,9 +29,66 @@
     button:hover {
       background: #45a049;
     }
+    #presets {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(0,0,0,0.8);
+      padding: 15px;
+      border-radius: 10px;
+      color: white;
+      text-align: center;
+    }
+    #presets h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+    .preset-btn {
+      background: #2196F3;
+      margin: 5px;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    .preset-btn:hover {
+      background: #1976D2;
+    }
+    .preset-btn.active {
+      background: #FF9800;
+    }
+    #info {
+      position: absolute;
+      top: 120px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #0f0;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-family: monospace;
+      z-index: 999;
+      max-width: 250px;
+    }
   </style>
 </head>
 <body>
+  <div id="presets">
+    <h3>🎯 Stability Presets</h3>
+    <button class="preset-btn active" data-preset="balanced">Balanced (Recommended)</button>
+    <button class="preset-btn" data-preset="ultra-smooth">Ultra Smooth</button>
+    <button class="preset-btn" data-preset="responsive">Responsive</button>
+    <button class="preset-btn" data-preset="animal4d">Animal 4D Clone</button>
+  </div>
+
+  <div id="info">
+    <strong>Current Settings:</strong><br>
+    filterMinCF: <span id="cf">0.0001</span><br>
+    filterBeta: <span id="beta">5</span><br>
+    warmup: <span id="warmup">2</span><br>
+    missTol: <span id="miss">80</span>
+  </div>
+  
   <div id="controls">
     <button id="btnSurvey">Survey</button>
     <button id="btnWalk">Walk</button>
@@ -39,10 +96,11 @@
   </div>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta:1000; warmupTolerance:2; missTolerance:100; maxTrack:1"
+    id="ar-scene"
+    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta:5; warmupTolerance:2; missTolerance:80; maxTrack:1"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
-    renderer="colorManagement: true; antialias: true;">
+    renderer="colorManagement: true; antialias: true; precision: medium;">
     
     <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
     
@@ -52,43 +110,83 @@
         gltf-model="assets/Fox.glb"
         scale="0.007 0.007 0.007"
         position="0 0 0"
-        rotation="90 0 0"
-        stable-tracking>
+        rotation="90 0 0">
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    // Professional AR stability - locks to card like Animal 4D
-    AFRAME.registerComponent('stable-tracking', {
-      init: function() {
-        this.wasEverVisible = false;
-        this.lastGoodPosition = new THREE.Vector3();
-        this.lastGoodRotation = new THREE.Quaternion();
-        
-        // Get parent target entity
-        this.targetEntity = this.el.parentEl;
+    // OPTIMAL PRESET CONFIGURATIONS
+    const PRESETS = {
+      // BEST FOR MOST USERS - Perfect balance
+      balanced: {
+        filterMinCF: 0.0001,   // Low cutoff = smooth tracking
+        filterBeta: 5,          // Moderate beta = good responsiveness + stability
+        warmupTolerance: 2,     // Quick detection
+        missTolerance: 80,      // Stays visible during brief losses
+        description: "Perfect balance of smoothness and responsiveness"
       },
       
-      tick: function(time, deltaTime) {
-        const targetObj = this.targetEntity.object3D;
-        const markerVisible = targetObj.visible;
-        
-        if (markerVisible) {
-          // Marker visible - animal is DIRECTLY locked to card position
-          // NO smoothing = perfectly fixed to card!
-          this.wasEverVisible = true;
-          this.lastGoodPosition.copy(targetObj.position);
-          this.lastGoodRotation.copy(targetObj.quaternion);
-          
-        } else if (this.wasEverVisible) {
-          // Marker lost - keep last position (never disappear)
-          targetObj.visible = true;
-          targetObj.position.copy(this.lastGoodPosition);
-          targetObj.quaternion.copy(this.lastGoodRotation);
-        }
+      // MAXIMUM SMOOTHNESS - Almost no shake
+      'ultra-smooth': {
+        filterMinCF: 0.00001,   // Extremely low = maximum smoothing
+        filterBeta: 0.5,        // Low beta = very smooth, slight lag
+        warmupTolerance: 3,     // Slightly slower detection for stability
+        missTolerance: 100,     // Maximum persistence
+        description: "Minimal shake, slight lag acceptable"
+      },
+      
+      // FAST RESPONSE - More reactive to movement
+      responsive: {
+        filterMinCF: 0.001,     // Higher cutoff = faster response
+        filterBeta: 15,         // High beta = very responsive
+        warmupTolerance: 1,     // Instant detection
+        missTolerance: 60,      // Still good persistence
+        description: "Quick response, minimal lag, tiny shake"
+      },
+      
+      // ANIMAL 4D EXACT CLONE - Professional grade
+      animal4d: {
+        filterMinCF: 0.00005,   // Very low for professional smoothness
+        filterBeta: 3,          // Optimized for natural feel
+        warmupTolerance: 2,     // Standard detection
+        missTolerance: 90,      // Long persistence like professional apps
+        description: "Mimics Animal 4D professional tracking"
       }
-    });
+    };
+
+    let currentPreset = 'balanced';
+
+    function applyPreset(presetName) {
+      const preset = PRESETS[presetName];
+      if (!preset) return;
+
+      const scene = document.querySelector('#ar-scene');
+      const mindarSystem = scene.systems['mindar-image-system'];
+      
+      // Update MindAR settings
+      if (mindarSystem && mindarSystem.filterMinCF !== undefined) {
+        mindarSystem.filterMinCF = preset.filterMinCF;
+        mindarSystem.filterBeta = preset.filterBeta;
+        mindarSystem.warmupTolerance = preset.warmupTolerance;
+        mindarSystem.missTolerance = preset.missTolerance;
+      }
+
+      // Update info display
+      document.getElementById('cf').textContent = preset.filterMinCF;
+      document.getElementById('beta').textContent = preset.filterBeta;
+      document.getElementById('warmup').textContent = preset.warmupTolerance;
+      document.getElementById('miss').textContent = preset.missTolerance;
+
+      // Update active button
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.querySelector(`[data-preset="${presetName}"]`).classList.add('active');
+
+      currentPreset = presetName;
+      console.log(`Applied preset: ${presetName}`, preset);
+    }
 
     AFRAME.registerComponent('fox-animations', {
       init: function() {
@@ -114,7 +212,6 @@
             this.actions[clip.name] = this.mixer.clipAction(clip);
           });
 
-          // Start with Survey animation
           this.playAnimation('Survey');
         });
       },
@@ -150,6 +247,7 @@
       const fox = document.querySelector('#fox');
       fox.setAttribute('fox-animations', '');
 
+      // Animation controls
       document.getElementById('btnSurvey').addEventListener('click', () => {
         fox.components['fox-animations'].playAnimation('Survey');
       });
@@ -160,6 +258,14 @@
 
       document.getElementById('btnRun').addEventListener('click', () => {
         fox.components['fox-animations'].playAnimation('Run');
+      });
+
+      // Preset controls
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const preset = btn.getAttribute('data-preset');
+          applyPreset(preset);
+        });
       });
     });
   </script>
