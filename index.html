@@ -35,13 +35,13 @@
 </head>
 <body>
   <div id="controls">
-    <button id="btnSurvey">survey</button>
+    <button id="btnSurvey">Survey</button>
     <button id="btnWalk">Walk</button>
     <button id="btnRun">Run</button>
   </div>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    mindar-image="imageTargetSrc: targets.mind;"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -52,7 +52,7 @@
         gltf-model="assets/Fox.glb"
         scale="0.01 0.01 0.01"
         position="0 0 0"
-        rotation="90 0 0">
+        rotation="0 0 0">
       </a-entity>
     </a-entity>
   </a-scene>
