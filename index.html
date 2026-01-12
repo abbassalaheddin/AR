@@ -39,12 +39,12 @@
   </div>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.00001; filterBeta:10; warmupTolerance:2; missTolerance:100; maxTrack:1"
+    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta:1000; warmupTolerance:2; missTolerance:100; maxTrack:1"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
-    renderer="colorManagement: true; antialias: true; maxCanvasWidth: 1280; maxCanvasHeight: 1280;">
+    renderer="colorManagement: true; antialias: true;">
     
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
     
     <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
       <a-entity
@@ -59,52 +59,33 @@
   </a-scene>
 
   <script>
-    // Professional AR stability component - like Animal 4D
+    // Professional AR stability - locks to card like Animal 4D
     AFRAME.registerComponent('stable-tracking', {
       init: function() {
         this.wasEverVisible = false;
         this.lastGoodPosition = new THREE.Vector3();
         this.lastGoodRotation = new THREE.Quaternion();
-        this.lastGoodScale = new THREE.Vector3(1, 1, 1);
-        
-        // Smooth damping
-        this.velocity = new THREE.Vector3();
-        this.angularVelocity = new THREE.Quaternion();
         
         // Get parent target entity
         this.targetEntity = this.el.parentEl;
       },
       
       tick: function(time, deltaTime) {
-        const dt = deltaTime / 1000;
         const targetObj = this.targetEntity.object3D;
-        const thisObj = this.el.object3D;
-        
-        // Check if marker is currently visible
         const markerVisible = targetObj.visible;
         
         if (markerVisible) {
-          // Marker is visible - update last good transform
+          // Marker visible - animal is DIRECTLY locked to card position
+          // NO smoothing = perfectly fixed to card!
           this.wasEverVisible = true;
           this.lastGoodPosition.copy(targetObj.position);
           this.lastGoodRotation.copy(targetObj.quaternion);
-          this.lastGoodScale.copy(targetObj.scale);
-          
-          // Apply very smooth damping to reduce shake
-          const smoothness = 0.08; // Very smooth like Animal 4D
-          
-          thisObj.position.lerp(this.lastGoodPosition, smoothness);
-          thisObj.quaternion.slerp(this.lastGoodRotation, smoothness);
-          
-          // Ensure visibility
-          thisObj.visible = true;
           
         } else if (this.wasEverVisible) {
-          // Marker lost but was visible before - STAY VISIBLE at last position
-          // This is the key to Animal 4D behavior!
-          thisObj.visible = true;
-          thisObj.position.copy(this.lastGoodPosition);
-          thisObj.quaternion.copy(this.lastGoodRotation);
+          // Marker lost - keep last position (never disappear)
+          targetObj.visible = true;
+          targetObj.position.copy(this.lastGoodPosition);
+          targetObj.quaternion.copy(this.lastGoodRotation);
         }
       }
     });
