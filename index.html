@@ -2,10 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Stable AR Flashcard</title>
-  <!-- A-Frame -->
+  <title>AR Animal Card</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <!-- MindAR for A-Frame -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
@@ -31,23 +29,9 @@
     button:hover {
       background: #45a049;
     }
-    #status {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 8px;
-      z-index: 1000;
-      font-family: Arial, sans-serif;
-    }
   </style>
 </head>
 <body>
-  <div id="status">Point camera at marker card</div>
-  
   <div id="controls">
     <button id="btnSurvey">Survey</button>
     <button id="btnWalk">Walk</button>
@@ -55,10 +39,10 @@
   </div>
 
   <a-scene
-    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.00001; filterBeta:0.001; warmupTolerance:2; missTolerance:10; maxTrack:1"
+    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.00001; filterBeta:10; warmupTolerance:2; missTolerance:100; maxTrack:1"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
-    renderer="colorManagement: true; physicallyCorrectLights: true; maxCanvasWidth: 1920; maxCanvasHeight: 1920;">
+    renderer="colorManagement: true; antialias: true; maxCanvasWidth: 1280; maxCanvasHeight: 1280;">
     
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
     
@@ -69,39 +53,58 @@
         scale="0.007 0.007 0.007"
         position="0 0 0"
         rotation="90 0 0"
-        animation-smoothing>
+        stable-tracking>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    // Custom component for position smoothing (reduces jitter)
-    AFRAME.registerComponent('animation-smoothing', {
-      schema: {
-        enabled: { default: true },
-        smoothFactor: { default: 0.15 } // Lower = smoother but more lag
-      },
-      
+    // Professional AR stability component - like Animal 4D
+    AFRAME.registerComponent('stable-tracking', {
       init: function() {
-        this.lastVisible = true;
-        this.smoothPosition = new THREE.Vector3();
-        this.smoothRotation = new THREE.Quaternion();
+        this.wasEverVisible = false;
+        this.lastGoodPosition = new THREE.Vector3();
+        this.lastGoodRotation = new THREE.Quaternion();
+        this.lastGoodScale = new THREE.Vector3(1, 1, 1);
+        
+        // Smooth damping
+        this.velocity = new THREE.Vector3();
+        this.angularVelocity = new THREE.Quaternion();
+        
+        // Get parent target entity
+        this.targetEntity = this.el.parentEl;
       },
       
-      tick: function(dt) {
-        if (!this.data.enabled) return;
+      tick: function(time, deltaTime) {
+        const dt = deltaTime / 1000;
+        const targetObj = this.targetEntity.object3D;
+        const thisObj = this.el.object3D;
         
-        const object3D = this.el.object3D;
+        // Check if marker is currently visible
+        const markerVisible = targetObj.visible;
         
-        // Keep model visible even during brief tracking loss
-        if (object3D.visible) {
-          this.lastVisible = true;
-          this.smoothPosition.copy(object3D.position);
-          this.smoothRotation.copy(object3D.quaternion);
-        } else if (this.lastVisible) {
-          // Maintain last known position briefly
-          object3D.position.copy(this.smoothPosition);
-          object3D.quaternion.copy(this.smoothRotation);
+        if (markerVisible) {
+          // Marker is visible - update last good transform
+          this.wasEverVisible = true;
+          this.lastGoodPosition.copy(targetObj.position);
+          this.lastGoodRotation.copy(targetObj.quaternion);
+          this.lastGoodScale.copy(targetObj.scale);
+          
+          // Apply very smooth damping to reduce shake
+          const smoothness = 0.08; // Very smooth like Animal 4D
+          
+          thisObj.position.lerp(this.lastGoodPosition, smoothness);
+          thisObj.quaternion.slerp(this.lastGoodRotation, smoothness);
+          
+          // Ensure visibility
+          thisObj.visible = true;
+          
+        } else if (this.wasEverVisible) {
+          // Marker lost but was visible before - STAY VISIBLE at last position
+          // This is the key to Animal 4D behavior!
+          thisObj.visible = true;
+          thisObj.position.copy(this.lastGoodPosition);
+          thisObj.quaternion.copy(this.lastGoodRotation);
         }
       }
     });
@@ -121,19 +124,16 @@
             return;
           }
 
-          // Create mixer
           this.mixer = new THREE.AnimationMixer(this.model);
           
-          // Get animations from the model
           const animations = this.model.animations || [];
-          console.log('Found animations:', animations.map(a => a.name));
+          console.log('Available animations:', animations.map(a => a.name));
 
-          // Create actions for each animation
           animations.forEach(clip => {
             this.actions[clip.name] = this.mixer.clipAction(clip);
           });
 
-          // Play Survey by default
+          // Start with Survey animation
           this.playAnimation('Survey');
         });
       },
@@ -150,50 +150,25 @@
           return;
         }
 
-        // Fade out current animation
         if (this.currentAction && this.currentAction !== this.actions[name]) {
-          this.currentAction.fadeOut(0.3);
+          this.currentAction.fadeOut(0.2);
         }
 
-        // Fade in and play new animation
         const action = this.actions[name];
         action.reset()
           .setEffectiveTimeScale(1)
           .setEffectiveWeight(1)
-          .fadeIn(0.3)
+          .fadeIn(0.2)
           .play();
 
         this.currentAction = action;
-        console.log('Playing:', name);
       }
     });
 
-    // Track marker visibility
-    AFRAME.registerComponent('marker-tracker', {
-      init: function() {
-        const status = document.getElementById('status');
-        
-        this.el.addEventListener('targetFound', () => {
-          status.textContent = '✓ Marker detected - Model locked to card';
-          status.style.background = 'rgba(76, 175, 80, 0.9)';
-        });
-        
-        this.el.addEventListener('targetLost', () => {
-          status.textContent = '✗ Marker lost - Point at card';
-          status.style.background = 'rgba(244, 67, 54, 0.9)';
-        });
-      }
-    });
-
-    // Initialize everything
     document.addEventListener('DOMContentLoaded', () => {
       const fox = document.querySelector('#fox');
-      const targetEntity = document.querySelector('#target-entity');
-      
       fox.setAttribute('fox-animations', '');
-      targetEntity.setAttribute('marker-tracker', '');
 
-      // Button event listeners
       document.getElementById('btnSurvey').addEventListener('click', () => {
         fox.components['fox-animations'].playAnimation('Survey');
       });
