@@ -1,273 +1,50 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>AR Animal Card - Optimized</title>
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-    #controls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      display: flex;
-      gap: 10px;
-    }
-    button {
-      padding: 12px 24px;
-      font-size: 16px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    #presets {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      background: rgba(0,0,0,0.8);
-      padding: 15px;
-      border-radius: 10px;
-      color: white;
-      text-align: center;
-    }
-    #presets h3 {
-      margin: 0 0 10px 0;
-      font-size: 14px;
-    }
-    .preset-btn {
-      background: #2196F3;
-      margin: 5px;
-      padding: 8px 16px;
-      font-size: 13px;
-    }
-    .preset-btn:hover {
-      background: #1976D2;
-    }
-    .preset-btn.active {
-      background: #FF9800;
-    }
-    #info {
-      position: absolute;
-      top: 120px;
-      left: 10px;
-      background: rgba(0,0,0,0.7);
-      color: #0f0;
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 11px;
-      font-family: monospace;
-      z-index: 999;
-      max-width: 250px;
-    }
-  </style>
-</head>
-<body>
-  <div id="presets">
-    <h3>🎯 Stability Presets</h3>
-    <button class="preset-btn active" data-preset="balanced">Balanced (Recommended)</button>
-    <button class="preset-btn" data-preset="ultra-smooth">Ultra Smooth</button>
-    <button class="preset-btn" data-preset="responsive">Responsive</button>
-    <button class="preset-btn" data-preset="animal4d">Animal 4D Clone</button>
-  </div>
-
-  <div id="info">
-    <strong>Current Settings:</strong><br>
-    filterMinCF: <span id="cf">0.0001</span><br>
-    filterBeta: <span id="beta">5</span><br>
-    warmup: <span id="warmup">2</span><br>
-    missTol: <span id="miss">80</span>
-  </div>
-  
-  <div id="controls">
-    <button id="btnSurvey">Survey</button>
-    <button id="btnWalk">Walk</button>
-    <button id="btnRun">Run</button>
-  </div>
-
-  <a-scene
-    id="ar-scene"
-    mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta:5; warmupTolerance:2; missTolerance:80; maxTrack:1"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-    renderer="colorManagement: true; antialias: true; precision: medium;">
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     
-    <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
-    
-    <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
-      <a-entity
-        id="fox"
-        gltf-model="assets/gazella.glb"
-        scale="0.1 0.1 0.1"
-        position="0 0 0"
-        rotation="0 0 0">
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <!-- MindAR -->
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  </head>
+
+  <body>
+    <a-scene
+      mindar-image="imageTargetSrc: targets.mind;"
+      renderer="colorManagement: true; physicallyCorrectLights: true"
+      color-space="sRGB"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+
+      <a-assets>
+        <a-asset-item id="avatarModel" src="/assets/Fox.glb"></a-asset-item>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <!-- Image Target -->
+      <a-entity mindar-image-target="targetIndex: 0">
+
+        <!-- 3D Model -->
+        <a-gltf-model
+          src="#avatarModel"
+          position="0 0 0.1"
+          rotation="0 0 0"
+          scale="0.005 0.005 0.005"
+          animation="
+            property: position;
+            to: 0 0.1 0.1;
+            dur: 1000;
+            easing: easeInOutQuad;
+            loop: true;
+            dir: alternate"
+        ></a-gltf-model>
+
       </a-entity>
-    </a-entity>
-  </a-scene>
 
-  <script>
-    // OPTIMAL PRESET CONFIGURATIONS
-    const PRESETS = {
-      // BEST FOR MOST USERS - Perfect balance
-      balanced: {
-        filterMinCF: 0.0001,   // Low cutoff = smooth tracking
-        filterBeta: 5,          // Moderate beta = good responsiveness + stability
-        warmupTolerance: 2,     // Quick detection
-        missTolerance: 80,      // Stays visible during brief losses
-        description: "Perfect balance of smoothness and responsiveness"
-      },
-      
-      // MAXIMUM SMOOTHNESS - Almost no shake
-      'ultra-smooth': {
-        filterMinCF: 0.00001,   // Extremely low = maximum smoothing
-        filterBeta: 0.5,        // Low beta = very smooth, slight lag
-        warmupTolerance: 3,     // Slightly slower detection for stability
-        missTolerance: 100,     // Maximum persistence
-        description: "Minimal shake, slight lag acceptable"
-      },
-      
-      // FAST RESPONSE - More reactive to movement
-      responsive: {
-        filterMinCF: 0.001,     // Higher cutoff = faster response
-        filterBeta: 15,         // High beta = very responsive
-        warmupTolerance: 1,     // Instant detection
-        missTolerance: 60,      // Still good persistence
-        description: "Quick response, minimal lag, tiny shake"
-      },
-      
-      // ANIMAL 4D EXACT CLONE - Professional grade
-      animal4d: {
-        filterMinCF: 0.00005,   // Very low for professional smoothness
-        filterBeta: 3,          // Optimized for natural feel
-        warmupTolerance: 2,     // Standard detection
-        missTolerance: 90,      // Long persistence like professional apps
-        description: "Mimics Animal 4D professional tracking"
-      }
-    };
-
-    let currentPreset = 'balanced';
-
-    function applyPreset(presetName) {
-      const preset = PRESETS[presetName];
-      if (!preset) return;
-
-      const scene = document.querySelector('#ar-scene');
-      const mindarSystem = scene.systems['mindar-image-system'];
-      
-      // Update MindAR settings
-      if (mindarSystem && mindarSystem.filterMinCF !== undefined) {
-        mindarSystem.filterMinCF = preset.filterMinCF;
-        mindarSystem.filterBeta = preset.filterBeta;
-        mindarSystem.warmupTolerance = preset.warmupTolerance;
-        mindarSystem.missTolerance = preset.missTolerance;
-      }
-
-      // Update info display
-      document.getElementById('cf').textContent = preset.filterMinCF;
-      document.getElementById('beta').textContent = preset.filterBeta;
-      document.getElementById('warmup').textContent = preset.warmupTolerance;
-      document.getElementById('miss').textContent = preset.missTolerance;
-
-      // Update active button
-      document.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      document.querySelector(`[data-preset="${presetName}"]`).classList.add('active');
-
-      currentPreset = presetName;
-      console.log(`Applied preset: ${presetName}`, preset);
-    }
-
-    AFRAME.registerComponent('fox-animations', {
-      init: function() {
-        this.model = null;
-        this.mixer = null;
-        this.actions = {};
-        this.currentAction = null;
-
-        this.el.addEventListener('model-loaded', () => {
-          this.model = this.el.getObject3D('mesh');
-          
-          if (!this.model) {
-            console.error('Model not found');
-            return;
-          }
-
-          this.mixer = new THREE.AnimationMixer(this.model);
-          
-          const animations = this.model.animations || [];
-          console.log('Available animations:', animations.map(a => a.name));
-
-          animations.forEach(clip => {
-            this.actions[clip.name] = this.mixer.clipAction(clip);
-          });
-
-          this.playAnimation('Animation');
-        });
-      },
-
-      tick: function(time, deltaTime) {
-        if (this.mixer) {
-          this.mixer.update(deltaTime / 1000);
-        }
-      },
-
-      playAnimation: function(name) {
-        if (!this.actions[name]) {
-          console.warn('Animation not found:', name);
-          return;
-        }
-
-        if (this.currentAction && this.currentAction !== this.actions[name]) {
-          this.currentAction.fadeOut(0.2);
-        }
-
-        const action = this.actions[name];
-        action.reset()
-          .setEffectiveTimeScale(1)
-          .setEffectiveWeight(1)
-          .fadeIn(0.2)
-          .play();
-
-        this.currentAction = action;
-      }
-    });
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const fox = document.querySelector('#fox');
-      fox.setAttribute('fox-animations', '');
-
-      // Animation controls
-      document.getElementById('btnSurvey').addEventListener('click', () => {
-        fox.components['fox-animations'].playAnimation('Survey');
-      });
-
-      document.getElementById('btnWalk').addEventListener('click', () => {
-        fox.components['fox-animations'].playAnimation('Walk');
-      });
-
-      document.getElementById('btnRun').addEventListener('click', () => {
-        fox.components['fox-animations'].playAnimation('Run');
-      });
-
-      // Preset controls
-      document.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const preset = btn.getAttribute('data-preset');
-          applyPreset(preset);
-        });
-      });
-    });
-  </script>
-</body>
+    </a-scene>
+  </body>
 </html>
